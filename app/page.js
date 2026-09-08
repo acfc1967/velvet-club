@@ -7,7 +7,7 @@ export default function Home() {
         <div className="brand"><span>✦</span> VELVET</div>
         <a href="#about">About</a>
         <a href="#features">Features</a>
-        <a className="navButton" href="#join">Join Velvet</a>
+        <a className="navButton" href="/dashboard">Member Area</a>
       </nav>
 
       <section className="heroContent">
@@ -17,9 +17,9 @@ export default function Home() {
           A social & gaming community built around good people, late nights,
           shared interests and a little bit of Velvet magic.
         </p>
-        <div className="actions" id="join">
-          <a className="primary" href="https://discord.com">Enter the Velvet Club <span>→</span></a>
-          <a className="secondary" href="#features">Explore Velvet</a>
+        <div className="actions">
+          <a className="primary" href="/api/auth/discord">Continue with Discord <span>→</span></a>
+          <a className="secondary" href="/dashboard">Preview the Club</a>
         </div>
         <div className="signature">Same Souls <span>•</span> Brighter Nights ♡</div>
       </section>
@@ -27,14 +27,18 @@ export default function Home() {
       <section className="featureStrip" id="features">
         <div><strong>🎮</strong><span>Gaming</span><small>Play together</small></div>
         <div><strong>💬</strong><span>Community</span><small>Find your people</small></div>
-        <div><strong>🎨</strong><span>Make it yours</span><small>Be unmistakably you</small></div>
-        <div><strong>✨</strong><span>Always evolving</span><small>More to discover</small></div>
+        <div><strong>🏆</strong><span>Progression</span><small>XP, levels & achievements</small></div>
+        <div><strong>✨</strong><span>Your identity</span><small>Titles, cosmetics & more</small></div>
       </section>
 
       <section className="about" id="about">
         <p className="eyebrow">THE VELVET PHILOSOPHY</p>
         <h2>Come for the games.<br /><em>Stay for the people.</em></h2>
-        <p>Velvet is built to feel less like another Discord server and more like somewhere you actually want to return to.</p>
+        <p>
+          Velvet Club is becoming the home outside the server — a place to see
+          your progress, show off your profile, collect achievements and keep
+          building your place in the community.
+        </p>
       </section>
     </main>
   );

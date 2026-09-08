@@ -1,6 +1,5 @@
 import { cookies } from 'next/headers';
 import { jwtVerify } from 'jose';
-import Link from 'next/link';
 
 async function getSession() {
   const secret = process.env.SESSION_SECRET;
@@ -29,10 +28,17 @@ const rankings = [
   ['04', 'You', 'Level 24', '7,420'],
 ];
 
+function discordAvatarUrl(id, avatar) {
+  if (!id || !avatar) return null;
+  const extension = avatar.startsWith('a_') ? 'gif' : 'png';
+  return `https://cdn.discordapp.com/avatars/${id}/${avatar}.${extension}?size=128`;
+}
+
 export default async function Dashboard() {
   const session = await getSession();
   const displayName = session?.global_name || session?.username || 'Velvet Member';
   const initial = displayName.charAt(0).toUpperCase();
+  const avatarUrl = discordAvatarUrl(session?.id, session?.avatar);
 
   return (
     <main className="dashboardShell">
@@ -64,7 +70,13 @@ export default async function Dashboard() {
           <header className="topbar">
             <div className="mobileBrand"><span>✦</span> VELVET</div>
             <div className="profileChip">
-              <div className="avatar">{initial}</div>
+              <div
+                className="avatar"
+                style={avatarUrl ? { backgroundImage: `url(${avatarUrl})` } : undefined}
+                aria-label={`${displayName}'s Discord avatar`}
+              >
+                {!avatarUrl && initial}
+              </div>
               <span>{displayName}</span>
             </div>
           </header>

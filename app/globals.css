@@ -58,7 +58,7 @@ h2 { font-size: clamp(36px, 6vw, 64px); font-weight: 400; line-height: 1.05; mar
 .mobileBrand { display: none; font-weight: 800; letter-spacing: .18em; }
 .mobileBrand span { color: #ef8fbd; }
 .profileChip { display: flex; align-items: center; gap: 10px; margin-left: auto; padding: 6px 10px 6px 6px; border: 1px solid #2a202c; background: rgba(255,255,255,.025); border-radius: 999px; }
-.avatar { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: linear-gradient(135deg,#e55a9f,#67357e); font-weight: 800; font-size: 12px; }
+.avatar { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: linear-gradient(135deg,#e55a9f,#67357e); background-size: cover; background-position: center; background-repeat: no-repeat; font-weight: 800; font-size: 12px; overflow: hidden; }
 .profileChip span { font-size: 12px; color: #d5cbd4; }
 .welcome { margin-bottom: 26px; }
 .welcome .eyebrow { margin-bottom: 12px; }

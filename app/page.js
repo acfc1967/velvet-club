@@ -1,130 +1,45 @@
-import Link from "next/link";
-
 export default function Home() {
   return (
-    <main className="velvetHome">
+    <main className="hero">
+      <div className="glow glowOne" />
+      <div className="glow glowTwo" />
+      <nav className="nav">
+        <div className="brand"><span>✦</span> VELVET</div>
+        <a href="#about">About</a>
+        <a href="#features">Features</a>
+        <a className="navButton" href="/dashboard">Member Area</a>
+      </nav>
 
-      <section className="hero">
-
-        <div className="heroGlow" />
-
-        <p className="eyebrow">
-          ✦ THE NEXT GENERATION COMMUNITY HUB
+      <section className="heroContent">
+        <p className="eyebrow">WELCOME TO THE VELVET CLUB</p>
+        <h1>More than a server.<br /><em>A place to belong.</em></h1>
+        <p className="intro">
+          A social & gaming community built around good people, late nights,
+          shared interests and a little bit of Velvet magic.
         </p>
-
-
-        <h1>
-          Welcome to
-          <span>
-            Velvet
-          </span>
-        </h1>
-
-
-        <p className="description">
-          A premium Discord experience built around
-          communities, achievements, progression,
-          and connection.
-        </p>
-
-
-        <div className="buttons">
-
-          <Link
-            href="/dashboard"
-            className="primaryButton"
-          >
-            Enter Velvet
-          </Link>
-
-
-          <a
-            href="#features"
-            className="secondaryButton"
-          >
-            Explore
-          </a>
-
+        <div className="actions">
+          <a className="primary" href="/api/auth/discord">Continue with Discord <span>→</span></a>
+          <a className="secondary" href="/dashboard">Preview the Club</a>
         </div>
-
-
+        <div className="signature">Same Souls <span>•</span> Brighter Nights ♡</div>
       </section>
 
-
-
-      <section
-        id="features"
-        className="features"
-      >
-
-
-        <div className="featureCard">
-
-          <span>
-            🏆
-          </span>
-
-          <h3>
-            Achievements
-          </h3>
-
-          <p>
-            Unlock rewards, titles,
-            and milestones as you grow.
-          </p>
-
-        </div>
-
-
-
-        <div className="featureCard">
-
-          <span>
-            ✨
-          </span>
-
-          <h3>
-            Progression
-          </h3>
-
-          <p>
-            Level up your Velvet profile
-            and showcase your journey.
-          </p>
-
-        </div>
-
-
-
-        <div className="featureCard">
-
-          <span>
-            🌙
-          </span>
-
-          <h3>
-            Community
-          </h3>
-
-          <p>
-            Connect, share interests,
-            and build friendships.
-          </p>
-
-        </div>
-
-
+      <section className="featureStrip" id="features">
+        <div><strong>🎮</strong><span>Gaming</span><small>Play together</small></div>
+        <div><strong>💬</strong><span>Community</span><small>Find your people</small></div>
+        <div><strong>🏆</strong><span>Progression</span><small>XP, levels & achievements</small></div>
+        <div><strong>✨</strong><span>Your identity</span><small>Titles, cosmetics & more</small></div>
       </section>
 
-
-
-      <footer>
-
-        © {new Date().getFullYear()} Velvet Club
-
-      </footer>
-
-
+      <section className="about" id="about">
+        <p className="eyebrow">THE VELVET PHILOSOPHY</p>
+        <h2>Come for the games.<br /><em>Stay for the people.</em></h2>
+        <p>
+          Velvet Club is becoming the home outside the server — a place to see
+          your progress, show off your profile, collect achievements and keep
+          building your place in the community.
+        </p>
+      </section>
     </main>
   );
 }

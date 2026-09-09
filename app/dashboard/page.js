@@ -92,7 +92,7 @@ export default async function Dashboard() {
   return (
     <main className="dashboardShell velvetPortal">
       <style dangerouslySetInnerHTML={{ __html: `
-        .velvetPortal{min-height:100vh;position:relative;overflow:hidden;background:#08060b;color:#f8f2f7}
+        .velvetPortal{min-height:100vh;position:relative;overflow:hidden;background:#08060b;color:#f8f2f7;isolation:isolate}
         .velvetPortal:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:-5;background:radial-gradient(circle at 12% 12%,rgba(231,75,164,.18),transparent 28%),radial-gradient(circle at 88% 22%,rgba(118,67,210,.16),transparent 30%),radial-gradient(circle at 52% 90%,rgba(218,54,151,.11),transparent 28%);animation:velvetNebula 18s ease-in-out infinite alternate}
         .velvetPortal:after{content:"";position:fixed;inset:0;pointer-events:none;z-index:-4;opacity:.3;background-image:radial-gradient(circle at 20% 30%,#fff 0 1px,transparent 1.5px),radial-gradient(circle at 75% 70%,#fff 0 1px,transparent 1.5px),radial-gradient(circle at 55% 15%,#fff 0 1px,transparent 1.5px);background-size:170px 170px,230px 230px,310px 310px;animation:starDrift 30s linear infinite}
         .velvetAmbient{position:fixed;border-radius:50%;filter:blur(70px);pointer-events:none;z-index:-3;opacity:.22}

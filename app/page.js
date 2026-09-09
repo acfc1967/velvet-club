@@ -16,7 +16,7 @@ export default function Home() {
             width:100%;
             max-width:390px;
             margin:20px auto 24px;
-            font-size:47px;
+            font-size:43px;
             line-height:.98;
             letter-spacing:-.04em;
             text-wrap:balance;
@@ -29,7 +29,8 @@ export default function Home() {
           }
 
           .heroTitleAccent {
-            margin-top:.22em;
+            margin-top:.28em;
+            white-space:nowrap;
           }
 
           .heroContent .intro{
@@ -40,7 +41,8 @@ export default function Home() {
         }
 
         @media (max-width:380px){
-          .heroContent h1.heroTitle{font-size:43px;}
+          .heroContent h1.heroTitle{font-size:40px;}
+          .heroTitleAccent{white-space:normal;}
         }
       `}} />
 

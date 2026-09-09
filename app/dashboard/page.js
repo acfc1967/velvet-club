@@ -2,823 +2,298 @@ import { cookies } from 'next/headers';
 import { jwtVerify } from 'jose';
 import { createClient } from '@supabase/supabase-js';
 
-
-/*
-  ==========================================
-  VELVET CLUB — DASHBOARD
-  ==========================================
-*/
-
-
 async function getSession() {
+  const secret = process.env.SESSION_SECRET;
 
-  const secret =
-    process.env.SESSION_SECRET;
-
-  if (!secret) {
-    return null;
-  }
-
+  if (!secret) return null;
 
   try {
+    const token = (await cookies()).get('velvet_session')?.value;
 
-    const token =
-      (await cookies())
-        .get('velvet_session')
-        ?.value;
+    if (!token) return null;
 
-
-    if (!token) {
-      return null;
-    }
-
-
-    const {
-      payload
-    } = await jwtVerify(
+    const { payload } = await jwtVerify(
       token,
       new TextEncoder().encode(secret)
     );
 
-
     return payload;
-
   } catch {
-
     return null;
-
   }
-
 }
-
-
-/*
-  ==========================================
-  SUPABASE
-  ==========================================
-*/
-
 
 function supabaseClient() {
-
   return createClient(
-
     process.env.NEXT_PUBLIC_SUPABASE_URL,
-
     process.env.SUPABASE_SERVICE_ROLE_KEY
-
   );
-
 }
 
-
-/*
-  ==========================================
-  DASHBOARD DATA
-  ==========================================
-*/
-
-
-async function getDashboardData(
-  discordId
-) {
-
+async function getDashboardData(discordId) {
   if (!discordId) {
-
-    console.error(
-      'VELVET DEBUG: No Discord ID supplied'
-    );
-
-
     return {
-
       profile: null,
-
       achievements: [],
-
       titles: [],
-
       leaderboard: []
-
     };
-
   }
 
-
-  const supabase =
-    supabaseClient();
-
-
-  /*
-    ========================================
-    PROFILE
-    ========================================
-  */
-
+  const supabase = supabaseClient();
 
   const {
-
     data: profile,
-
     error: profileError
-
   } = await supabase
-
     .from('profiles')
-
     .select('*')
-
-    .eq(
-      'discord_id',
-      discordId
-    )
-
+    .eq('discord_id', discordId)
     .single();
 
-
   if (profileError) {
-
-    console.error(
-
-      'VELVET PROFILE ERROR:',
-
-      profileError
-
-    );
-
+    console.error('VELVET PROFILE ERROR:', profileError);
   }
-
-
-  /*
-    ========================================
-    ACHIEVEMENT LINKS
-    ========================================
-  */
-
 
   const {
-
     data: achievementLinks,
-
     error: achievementLinksError
-
   } = await supabase
-
     .from('member_achievements')
-
-    .select(
-      'achievement_id, unlocked_at'
-    )
-
-    .eq(
-      'discord_id',
-      discordId
-    )
-
-    .order(
-      'unlocked_at',
-      {
-        ascending: false
-      }
-    );
-
+    .select('achievement_id, unlocked_at')
+    .eq('discord_id', discordId)
+    .order('unlocked_at', { ascending: false });
 
   if (achievementLinksError) {
-
     console.error(
-
       'VELVET ACHIEVEMENT LINK ERROR:',
-
       achievementLinksError
-
     );
-
   }
-
 
   let achievements = [];
 
-
-  /*
-    ========================================
-    ACHIEVEMENT DEFINITIONS
-    ========================================
-  */
-
-
-  if (
-
-    !achievementLinksError &&
-
-    achievementLinks?.length
-
-  ) {
-
-    const ids =
-      achievementLinks.map(
-        item =>
-          item.achievement_id
-      );
-
+  if (!achievementLinksError && achievementLinks?.length) {
+    const ids = achievementLinks.map(
+      item => item.achievement_id
+    );
 
     const {
-
       data: definitions,
-
       error: definitionsError
-
     } = await supabase
-
       .from('achievements')
-
       .select(`
-
         id,
-
         achievement_name,
-
         description,
-
         rarity,
-
         icon,
-
         xp_reward,
-
         coin_reward
-
       `)
-
-      .in(
-        'id',
-        ids
-      );
-
+      .in('id', ids);
 
     if (definitionsError) {
-
       console.error(
-
         'VELVET ACHIEVEMENT DEFINITIONS ERROR:',
-
         definitionsError
-
       );
-
     }
 
+    const byId = new Map(
+      (definitions || []).map(
+        item => [item.id, item]
+      )
+    );
 
-    const byId =
-      new Map(
-
-        (definitions || [])
-          .map(
-            item => [
-
-              item.id,
-
-              item
-
-            ]
-          )
-
-      );
-
-
-    achievements =
-
-      achievementLinks
-
-        .map(
-          item => ({
-
-            unlocked_at:
-              item.unlocked_at,
-
-            achievements:
-              byId.get(
-                item.achievement_id
-              ) || null
-
-          })
-        )
-
-        .filter(
-          item =>
-            item.achievements
-        );
-
+    achievements = achievementLinks
+      .map(item => ({
+        unlocked_at: item.unlocked_at,
+        achievements:
+          byId.get(item.achievement_id) || null
+      }))
+      .filter(item => item.achievements);
   }
-
-
-  /*
-    ========================================
-    TITLES
-    ========================================
-  */
-
 
   const {
-
     data: titleLinks,
-
     error: titleLinksError
-
   } = await supabase
-
     .from('member_titles')
-
-    .select(
-      'title_id, unlocked_at, equipped'
-    )
-
-    .eq(
-      'discord_id',
-      discordId
-    );
-
+    .select('title_id, unlocked_at, equipped')
+    .eq('discord_id', discordId);
 
   if (titleLinksError) {
-
     console.error(
-
       'VELVET TITLE LINK ERROR:',
-
       titleLinksError
-
     );
-
   }
-
 
   let titles = [];
 
-
-  /*
-    ========================================
-    TITLE DEFINITIONS
-    ========================================
-  */
-
-
-  if (
-
-    !titleLinksError &&
-
-    titleLinks?.length
-
-  ) {
-
-    const ids =
-      titleLinks.map(
-        item =>
-          item.title_id
-      );
-
-
-    const {
-
-      data: definitions,
-
-      error: definitionsError
-
-    } = await supabase
-
-      .from('titles')
-
-      .select(
-        'id, title_name'
-      )
-
-      .in(
-        'id',
-        ids
-      );
-
-
-    if (definitionsError) {
-
-      console.error(
-
-        'VELVET TITLE DEFINITIONS ERROR:',
-
-        definitionsError
-
-      );
-
-    }
-
-
-    const byId =
-      new Map(
-
-        (definitions || [])
-          .map(
-            item => [
-
-              item.id,
-
-              item
-
-            ]
-          )
-
-      );
-
-
-    titles =
-
-      titleLinks
-
-        .map(
-          item => ({
-
-            unlocked_at:
-              item.unlocked_at,
-
-            equipped:
-              item.equipped === true,
-
-            titles:
-              byId.get(
-                item.title_id
-              ) || null
-
-          })
-        )
-
-        .filter(
-          item =>
-            item.titles
-        );
-
-  }
-
-
-  /*
-    ========================================
-    LEADERBOARD
-    ========================================
-  */
-
-
-  const {
-
-    data: leaderboard,
-
-    error: leaderboardError
-
-  } = await supabase
-
-    .from('profiles')
-
-    .select(`
-
-      display_name,
-
-      level,
-
-      xp,
-
-      coins,
-
-      title,
-
-      avatar_url
-
-    `)
-
-    .order(
-
-      'xp',
-
-      {
-        ascending: false
-      }
-
-    )
-
-    .limit(10);
-
-
-  if (leaderboardError) {
-
-    console.error(
-
-      'VELVET LEADERBOARD ERROR:',
-
-      leaderboardError
-
+  if (!titleLinksError && titleLinks?.length) {
+    const ids = titleLinks.map(
+      item => item.title_id
     );
 
+    const {
+      data: definitions,
+      error: definitionsError
+    } = await supabase
+      .from('titles')
+      .select('id, title_name')
+      .in('id', ids);
+
+    if (definitionsError) {
+      console.error(
+        'VELVET TITLE DEFINITIONS ERROR:',
+        definitionsError
+      );
+    }
+
+    const byId = new Map(
+      (definitions || []).map(
+        item => [item.id, item]
+      )
+    );
+
+    titles = titleLinks
+      .map(item => ({
+        unlocked_at: item.unlocked_at,
+        equipped: item.equipped === true,
+        titles:
+          byId.get(item.title_id) || null
+      }))
+      .filter(item => item.titles);
   }
 
+  const {
+    data: leaderboard,
+    error: leaderboardError
+  } = await supabase
+    .from('profiles')
+    .select(`
+      display_name,
+      level,
+      xp,
+      title,
+      avatar_url
+    `)
+    .order('xp', { ascending: false })
+    .limit(5);
+
+  if (leaderboardError) {
+    console.error(
+      'VELVET LEADERBOARD ERROR:',
+      leaderboardError
+    );
+  }
 
   return {
-
     profile,
-
     achievements,
-
     titles,
-
-    leaderboard:
-      leaderboard || []
-
+    leaderboard: leaderboard || []
   };
-
 }
+
 export default async function Dashboard() {
-
-  /*
-    ==========================================
-    SESSION
-    ==========================================
-  */
-
-  const session =
-    await getSession();
-
-
-  /*
-    ==========================================
-    LOAD DASHBOARD DATA
-    ==========================================
-  */
+  const session = await getSession();
 
   const {
-
     profile,
-
     achievements,
-
     titles,
-
     leaderboard
-
-  } = await getDashboardData(
-    session?.id
-  );
-
-
-  /*
-    ==========================================
-    BASIC PROFILE DATA
-    ==========================================
-  */
+  } = await getDashboardData(session?.id);
 
   const displayName =
     profile?.display_name ||
     session?.username ||
     'Velvet Member';
 
-
-  const username =
-    profile?.username ||
-    session?.username ||
-    'member';
-
-
   const avatarUrl =
     profile?.avatar_url ||
     session?.avatar ||
     null;
 
+  const initial = displayName
+    .charAt(0)
+    .toUpperCase();
 
-  const initial =
-    displayName
-      .charAt(0)
-      .toUpperCase();
+  const level = Number(profile?.level) || 1;
+  const xp = Number(profile?.xp) || 0;
+  const coins = Number(profile?.coins) || 0;
 
-
-  /*
-    ==========================================
-    PROGRESSION
-    ==========================================
-  */
-
-  const level =
-    Number(
-      profile?.level
-    ) || 1;
-
-
-  const xp =
-    Number(
-      profile?.xp
-    ) || 0;
-
-
-  const coins =
-    Number(
-      profile?.coins
-    ) || 0;
-
-
-  /*
-    ==========================================
-    NEXT LEVEL
-    ==========================================
-  */
-
-  const currentLevelXp =
-    level * 1000;
-
-
-  const nextLevelXp =
-    (level + 1) * 1000;
-
-
-  const xpIntoLevel =
-    Math.max(
-      xp - currentLevelXp,
-      0
-    );
-
-
-  const xpRequired =
-    Math.max(
-      nextLevelXp -
-      currentLevelXp,
-      1
-    );
-
-
-  const xpPercent =
-    Math.min(
-      Math.max(
-        (
-          xpIntoLevel /
-          xpRequired
-        ) * 100,
-        0
-      ),
-      100
-    );
-
-
-  /*
-    ==========================================
-    EQUIPPED TITLE
-    ==========================================
-  */
-
-  const equippedTitle =
-    titles.find(
-      item =>
-        item.equipped === true
-    );
-
+  const equippedTitle = titles.find(
+    item => item.equipped
+  );
 
   const title =
     profile?.title ||
-    equippedTitle
-      ?.titles
-      ?.title_name ||
+    equippedTitle?.titles?.title_name ||
     'New Member';
 
+  const nextLevel = (level + 1) * 1000;
 
-  /*
-    ==========================================
-    ACHIEVEMENT DATA
-    ==========================================
-  */
+  const xpPercent = Math.min(
+    Math.max((xp / nextLevel) * 100, 0),
+    100
+  );
 
-  const achievementItems =
-    achievements.map(
-      item => ({
+  const xpRemaining = Math.max(
+    nextLevel - xp,
+    0
+  );
 
-        name:
-          item.achievements
-            ?.achievement_name ||
-          'Unknown Achievement',
+  const achievementItems = achievements.map(
+    item => ({
+      name:
+        item.achievements?.achievement_name ||
+        'Unknown Achievement',
+      description:
+        item.achievements?.description ||
+        'A Velvet achievement.',
+      rarity:
+        item.achievements?.rarity ||
+        'Common',
+      icon:
+        item.achievements?.icon ||
+        '🏆',
+      xpReward:
+        Number(item.achievements?.xp_reward) || 0,
+      coinReward:
+        Number(item.achievements?.coin_reward) || 0,
+      unlockedAt: item.unlocked_at
+    })
+  );
 
+  const titleItems = titles.map(
+    item => ({
+      name:
+        item.titles?.title_name ||
+        'Unknown Title',
+      equipped: item.equipped === true,
+      unlockedAt: item.unlocked_at
+    })
+  );
 
-        description:
-          item.achievements
-            ?.description ||
-          'A Velvet achievement.',
-
-
-        rarity:
-          item.achievements
-            ?.rarity ||
-          'Common',
-
-
-        icon:
-          item.achievements
-            ?.icon ||
-          '🏆',
-
-
-        xpReward:
-          Number(
-            item.achievements
-              ?.xp_reward
-          ) || 0,
-
-
-        coinReward:
-          Number(
-            item.achievements
-              ?.coin_reward
-          ) || 0,
-
-
-        unlockedAt:
-          item.unlocked_at
-
-      })
-    );
-
-
-  /*
-    ==========================================
-    TITLE DATA
-    ==========================================
-  */
-
-  const titleItems =
-    titles.map(
-      item => ({
-
-        name:
-          item.titles
-            ?.title_name ||
-          'Unknown Title',
-
-
-        equipped:
-          item.equipped === true,
-
-
-        unlockedAt:
-          item.unlocked_at
-
-      })
-    );
-
-
-  /*
-    ==========================================
-    RARITY CONFIG
-    ==========================================
-  */
-
-  const rarityConfig = {
-
+  const rarityStyles = {
     Common: {
-
-      className:
-        'rarityCommon',
-
-      label:
-        'COMMON'
-
+      color: '#b9acb7'
     },
-
-
     Rare: {
-
-      className:
-        'rarityRare',
-
-      label:
-        'RARE'
-
+      color: '#78a9ff'
     },
-
-
     Epic: {
-
-      className:
-        'rarityEpic',
-
-      label:
-        'EPIC'
-
+      color: '#c084fc'
     },
-
-
     Legendary: {
-
-      className:
-        'rarityLegendary',
-
-      label:
-        'LEGENDARY'
-
+      color: '#f0b45d'
     }
-
   };
-
-
-  /*
-    ==========================================
-    MEMBER RANK
-    ==========================================
-  */
 
   const memberRank =
     leaderboard.findIndex(
@@ -827,147 +302,67 @@ export default async function Dashboard() {
         profile?.display_name
     ) + 1;
 
-
-  /*
-    ==========================================
-    SAFE RANK
-    ==========================================
-  */
-
   const rank =
-    memberRank > 0
-      ? memberRank
-      : '—';
-
-
-  /*
-    ==========================================
-    PAGE
-    ==========================================
-  */
+    memberRank > 0 ? memberRank : '—';
 
   return (
-
     <main className="dashboardShell">
-
       <div className="dashboardGlow" />
 
       <div className="dashboardLayout">
-
         <aside className="sidebar">
-
           <div className="sideBrand">
-
-            <span>
-              ✦
-            </span>
-
-            VELVET
-
+            <span>✦</span> VELVET
           </div>
-
 
           <div className="sideLabel">
             CLUB
           </div>
 
-
           <nav className="sideNav">
-
             <a
               className="active"
-              href="#top"
+              href="/dashboard"
             >
-              <span>
-                ⌂
-              </span>
-
-              Overview
-
+              ⌂ <span>Overview</span>
             </a>
-
 
             <a href="#profile">
-
-              <span>
-                ◉
-              </span>
-
-              Profile
-
+              ◉ <span>Profile</span>
             </a>
-
 
             <a href="#progress">
-
-              <span>
-                ✦
-              </span>
-
-              Progress
-
+              ✦ <span>Progress</span>
             </a>
-
 
             <a href="#achievements">
-
-              <span>
-                🏆
-              </span>
-
-              Achievements
-
+              ♜ <span>Achievements</span>
             </a>
-
 
             <a href="#titles">
-
-              <span>
-                ♛
-              </span>
-
-              Titles
-
+              ♛ <span>Titles</span>
             </a>
-
 
             <a href="#leaderboard">
-
-              <span>
-                ◈
-              </span>
-
-              Leaderboard
-
+              ◈ <span>Leaderboard</span>
             </a>
-
           </nav>
 
-
           <div className="sideBottom">
-
-            <small>
-              VELVET CLUB
-            </small>
+            <small>VELVET CLUB</small>
 
             <strong>
               Same Souls • Brighter Nights ♡
             </strong>
-
           </div>
-
         </aside>
-
 
         <section
           className="mainPanel"
           id="top"
         >
-
           <header className="topbar">
-
             <div className="profileChip">
-
               <div
                 className="avatar"
                 style={
@@ -979,880 +374,479 @@ export default async function Dashboard() {
                     : undefined
                 }
               >
-
-                {!avatarUrl &&
-                  initial}
-
+                {!avatarUrl && initial}
               </div>
 
-
-              <div className="profileChipText">
-
-                <span>
-                  {displayName}
-                </span>
-
-                <small>
-                  @{username}
-                </small>
-
-              </div>
-
+              <span>{displayName}</span>
             </div>
-
-
-            <div className="topbarStatus">
-
-              <span className="statusDot" />
-
-              ONLINE
-
-            </div>
-
           </header>
-
 
           <div
             className="welcome"
             id="profile"
           >
-
             <p className="eyebrow">
               MEMBER DASHBOARD
             </p>
 
-
             <h1>
-
               Welcome back,
-
               <em>
                 {displayName}.
               </em>
-
             </h1>
 
-
             <p>
-              Your Velvet journey,
-              all in one place.
+              Your Velvet journey, all in one place.
             </p>
-
           </div>
 
-
           <section className="gridStats">
-
             <div className="statCard">
-
-              <div className="statIcon">
-                ✦
-              </div>
-
-              <small>
-                LEVEL
-              </small>
-
-              <strong>
-                {level}
-              </strong>
-
-              <em>
-                {title}
-              </em>
-
+              <div className="statIcon">✦</div>
+              <small>Level</small>
+              <strong>{level}</strong>
+              <em>{title}</em>
             </div>
 
-
             <div className="statCard">
-
-              <div className="statIcon">
-                ◇
-              </div>
-
-              <small>
-                VELVET XP
-              </small>
-
+              <div className="statIcon">◇</div>
+              <small>Velvet XP</small>
               <strong>
                 {xp.toLocaleString()}
               </strong>
-
               <em>
-                XP
+                / {nextLevel.toLocaleString()}
               </em>
-
             </div>
 
-
             <div className="statCard">
-
-              <div className="statIcon">
-                ◆
-              </div>
-
-              <small>
-                COINS
-              </small>
-
+              <div className="statIcon">◆</div>
+              <small>Coins</small>
               <strong>
                 {coins.toLocaleString()}
               </strong>
-
-              <em>
-                VELVET COINS
-              </em>
-
+              <em>Velvet Coins</em>
             </div>
 
-
             <div className="statCard">
-
-              <div className="statIcon">
-                🏆
-              </div>
-
-              <small>
-                ACHIEVEMENTS
-              </small>
-
+              <div className="statIcon">🏆</div>
+              <small>Achievements</small>
               <strong>
                 {achievementItems.length}
               </strong>
-
-              <em>
-                UNLOCKED
-              </em>
-
+              <em>earned</em>
             </div>
-
           </section>
+
           <section className="contentGrid">
-
-
             <div
               className="panel"
               id="progress"
             >
-
               <div className="panelHeader">
-
-                <h2>
-                  YOUR PROGRESS
-                </h2>
-
+                <h2>YOUR PROGRESS</h2>
               </div>
 
+              <p
+                style={{
+                  color: '#b9acb7',
+                  fontSize: 13,
+                  margin: '0 0 15px'
+                }}
+              >
+                Level {level}
+                <span
+                  style={{
+                    color: '#716471'
+                  }}
+                >
+                  {' '}•{' '}
+                </span>
+                {title}
+              </p>
 
-              <div className="progressStats">
-
-
-                <div>
-
-                  <small>
-                    CURRENT LEVEL
-                  </small>
-
-                  <strong>
-                    {level}
-                  </strong>
-
-                </div>
-
-
-
-                <div>
-
-                  <small>
-                    RANK
-                  </small>
-
-                  <strong>
-                    #{rank}
-                  </strong>
-
-                </div>
-
-
+              <div className="xpBar">
+                <div
+                  className="xpFill"
+                  style={{
+                    width: `${xpPercent}%`
+                  }}
+                />
               </div>
 
-
-
-              <div className="xpHeader">
-
+              <div className="xpMeta">
                 <span>
                   {xp.toLocaleString()} XP
                 </span>
 
-
                 <span>
-                  {nextLevelXp.toLocaleString()} XP
+                  {nextLevel.toLocaleString()} XP
                 </span>
-
               </div>
 
-
-
-              <div className="xpBar">
-
-                <div
-
-                  className="xpFill"
-
-                  style={{
-                    width:
-                      `${xpPercent}%`
-                  }}
-
-                />
-
-              </div>
-
-
-
-              <p className="xpDescription">
-
-                {
-                  Math.max(
-                    nextLevelXp - xp,
-                    0
-                  )
-                }
-
-                XP until the next level.
-
+              <p
+                style={{
+                  color: '#786b77',
+                  fontSize: 10,
+                  margin: '13px 0 0'
+                }}
+              >
+                {xpRemaining.toLocaleString()} XP until
+                the next level.
               </p>
-
-
             </div>
-
-
-
-
-
 
             <div
               className="panel"
               id="achievements"
             >
-
-
               <div className="panelHeader">
+                <h2>RECENT ACHIEVEMENTS</h2>
 
-                <h2>
-                  TROPHY CABINET
-                </h2>
-
-
-                <span>
-
-                  {
-                    achievementItems.length
-                  }
-
-                  {' '}
-                  earned
-
+                <span
+                  style={{
+                    color: '#786b77',
+                    fontSize: 10
+                  }}
+                >
+                  {achievementItems.length} earned
                 </span>
-
-
               </div>
 
-
-
-
-
-              {
-                achievementItems.length > 0
-
-                ?
-
-
+              {achievementItems.length ? (
                 achievementItems
-                  .slice(0, 6)
+                  .slice(0, 5)
                   .map(
-
                     (
                       achievement,
                       index
                     ) => {
-
-
-                      const rarity =
-                        rarityConfig[
+                      const rarityStyle =
+                        rarityStyles[
                           achievement.rarity
-                        ]
-                        ||
-                        rarityConfig.Common;
-
-
+                        ] ||
+                        rarityStyles.Common;
 
                       return (
-
                         <div
-
-                          className="achievementCard"
-
-                          key={
-                            `${achievement.name}-${index}`
-                          }
-
-
-                          style={{
-
-                            borderColor:
-                              rarity.className,
-
-                          }}
-
+                          className="achievement"
+                          key={`${achievement.name}-${index}`}
                         >
-
-
-
-                          <div className="achievementIcon">
-
-                            {
-                              achievement.icon
-                            }
-
+                          <div
+                            className="achievementBadge"
+                            style={{
+                              borderColor:
+                                rarityStyle.color,
+                              boxShadow:
+                                `0 0 16px ${rarityStyle.color}22`
+                            }}
+                          >
+                            {achievement.icon}
                           </div>
 
-
-
-
-
-                          <div className="achievementContent">
-
-
-                            <div className="achievementTitle">
-
-
-                              <strong>
-
-                                {
-                                  achievement.name
-                                }
-
-                              </strong>
-
-
-
-                              <span
-                                className={
-                                  rarity.className
-                                }
-                              >
-
-                                {
-                                  rarity.label
-                                }
-
-                              </span>
-
-
-                            </div>
-
-
-
-
-
-                            <p>
-
-                              {
-                                achievement.description
-                              }
-
-                            </p>
-
-
-
-
-
-                            <div className="achievementRewards">
-
-
-                              <span>
-
-                                ⭐
-
-                                +
-
-                                {
-                                  achievement.xpReward
-                                }
-
-                                XP
-
-                              </span>
-
-
-
-
-                              <span>
-
-                                💰
-
-                                +
-
-                                {
-                                  achievement.coinReward
-                                }
-
-                                Coins
-
-                              </span>
-
-
-
-                            </div>
-
-
-
-
+                          <div className="achievementText">
+                            <strong>
+                              {achievement.name}
+                            </strong>
 
                             <small>
-
-                              Unlocked:
-
-                              {' '}
-
-                              {
-                                new Date(
-                                  achievement.unlockedAt
-                                )
-                                .toLocaleDateString(
-                                  'en-GB',
-                                  {
-
-                                    day:
-                                      'numeric',
-
-                                    month:
-                                      'short',
-
-                                    year:
-                                      'numeric'
-
-                                  }
-                                )
-                              }
-
-
+                              {achievement.description}
                             </small>
 
+                            <small>
+                              <span
+                                style={{
+                                  color:
+                                    rarityStyle.color,
+                                  fontWeight: 700
+                                }}
+                              >
+                                {achievement.rarity.toUpperCase()}
+                              </span>
+                              {' • '}
+                              ⭐ +{achievement.xpReward} XP
+                              {' • '}
+                              💰 +{achievement.coinReward} Coins
+                            </small>
 
+                            {achievement.unlockedAt && (
+                              <small>
+                                Unlocked{' '}
+                                {new Date(
+                                  achievement.unlockedAt
+                                ).toLocaleDateString(
+                                  'en-GB',
+                                  {
+                                    day: 'numeric',
+                                    month: 'short',
+                                    year: 'numeric'
+                                  }
+                                )}
+                              </small>
+                            )}
                           </div>
-
-
-
                         </div>
-
-
                       );
-
-
                     }
-
                   )
-
-
-                :
-
-
-                (
-
-                  <div className="emptyState">
-
-
-                    <span>
-                      🏆
-                    </span>
-
-
-                    <strong>
-                      No achievements yet
-                    </strong>
-
-
-                    <p>
-
-                      Complete challenges
-                      to grow your Velvet legacy.
-
-                    </p>
-
-
+              ) : (
+                <div className="achievement">
+                  <div className="achievementBadge">
+                    ✦
                   </div>
 
-                )
+                  <div className="achievementText">
+                    <strong>
+                      Your story starts here
+                    </strong>
 
-              }
-
-
+                    <small>
+                      Keep exploring Velvet to unlock achievements.
+                    </small>
+                  </div>
+                </div>
+              )}
             </div>
+
             <div
               className="panel"
               id="titles"
             >
-
-
               <div className="panelHeader">
+                <h2>YOUR TITLES</h2>
 
-                <h2>
-                  YOUR TITLES
-                </h2>
-
-
-                <span>
-
-                  {
-                    titleItems.length
-                  }
-
-                  {' '}
-                  unlocked
-
+                <span
+                  style={{
+                    color: '#786b77',
+                    fontSize: 10
+                  }}
+                >
+                  {titleItems.length} unlocked
                 </span>
-
               </div>
 
-
-
-
-
-              {
-                titleItems.length > 0
-
-                ?
-
+              {titleItems.length ? (
                 titleItems.map(
-
                   (
                     item,
                     index
                   ) => (
-
                     <div
-
-                      className={
-                        item.equipped
-                        ? "titleCard equipped"
-                        : "titleCard"
-                      }
-
-                      key={
-                        `${item.name}-${index}`
-                      }
-
+                      className="achievement"
+                      key={`${item.name}-${index}`}
                     >
-
-
-
-                      <div className="titleIcon">
-
-                        {
+                      <div
+                        className="achievementBadge"
+                        style={
                           item.equipped
-                          ? "👑"
-                          : "♛"
+                            ? {
+                                borderColor: '#e6a4c8',
+                                boxShadow:
+                                  '0 0 18px rgba(230,164,200,.18)'
+                              }
+                            : undefined
                         }
-
+                      >
+                        {item.equipped
+                          ? '👑'
+                          : '✦'}
                       </div>
 
-
-
-
-                      <div className="titleContent">
-
-
+                      <div className="achievementText">
                         <strong>
-
-                          {
-                            item.name
-                          }
-
+                          {item.name}
                         </strong>
 
-
-
                         <small>
-
-                          {
-                            item.equipped
-
-                            ?
-
-                            "Currently equipped"
-
-                            :
-
-                            "Unlocked title"
-
-                          }
-
+                          {item.equipped
+                            ? 'Currently equipped'
+                            : 'Unlocked title'}
                         </small>
 
-
+                        {item.unlockedAt && (
+                          <small>
+                            Unlocked{' '}
+                            {new Date(
+                              item.unlockedAt
+                            ).toLocaleDateString(
+                              'en-GB',
+                              {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric'
+                              }
+                            )}
+                          </small>
+                        )}
                       </div>
-
-
-
-
                     </div>
-
                   )
-
                 )
+              ) : (
+                <div className="achievement">
+                  <div className="achievementBadge">
+                    ♛
+                  </div>
 
-
-                :
-
-
-                (
-
-                  <div className="emptyState">
-
-
-                    <span>
-                      ♛
-                    </span>
-
-
+                  <div className="achievementText">
                     <strong>
                       No titles yet
                     </strong>
 
-
-                    <p>
+                    <small>
                       Unlock titles as your Velvet journey continues.
-                    </p>
-
-
+                    </small>
                   </div>
-
-                )
-
-              }
-
-
-
+                </div>
+              )}
             </div>
-
-
-
-
-
-
-
 
             <div
               className="panel"
               id="leaderboard"
             >
-
-
-
               <div className="panelHeader">
+                <h2>LEADERBOARD</h2>
 
-
-                <h2>
-                  LEADERBOARD
-                </h2>
-
-
+                <span
+                  style={{
+                    color: '#786b77',
+                    fontSize: 10
+                  }}
+                >
+                  Top 5
+                </span>
               </div>
 
-
-
-
-
-              {
-                leaderboard.length > 0
-
-                ?
-
-                leaderboard.map(
-
-                  (
-                    member,
-                    index
-                  ) => (
-
-                    <div
-
-                      className="leaderboardRow"
-
-                      key={
-                        `${member.display_name}-${index}`
-                      }
-
-                    >
-
-
-
-                      <div className="rankNumber">
-
-                        {
-                          index + 1
-                        }
-
-                      </div>
-
-
-
-
-
-                      <div className="leaderMember">
-
+              <div className="rankList">
+                {leaderboard.length ? (
+                  leaderboard.map(
+                    (
+                      member,
+                      index
+                    ) => (
+                      <div
+                        className="rank"
+                        key={`${member.display_name || 'member'}-${index}`}
+                      >
+                        <div className="rankNum">
+                          {String(index + 1).padStart(2, '0')}
+                        </div>
 
                         <div
-
-                          className="leaderAvatar"
-
-                          style={
-                            member.avatar_url
-
-                            ?
-
-                            {
-                              backgroundImage:
-                              `url(${member.avatar_url})`
-                            }
-
-                            :
-
-                            undefined
-                          }
-
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 9,
+                            minWidth: 0
+                          }}
                         >
+                          <div
+                            className="avatar"
+                            style={
+                              member.avatar_url
+                                ? {
+                                    width: 30,
+                                    height: 30,
+                                    flexShrink: 0,
+                                    backgroundImage:
+                                      `url(${member.avatar_url})`
+                                  }
+                                : {
+                                    width: 30,
+                                    height: 30,
+                                    flexShrink: 0
+                                  }
+                            }
+                          >
+                            {!member.avatar_url &&
+                              (
+                                member.display_name ||
+                                '?'
+                              )
+                                .charAt(0)
+                                .toUpperCase()}
+                          </div>
 
-                          {
-                            !member.avatar_url &&
-                            (
-                              member.display_name ||
-                              "?"
-                            )
-                            .charAt(0)
-                            .toUpperCase()
-                          }
+                          <div
+                            style={{
+                              minWidth: 0
+                            }}
+                          >
+                            <strong>
+                              {member.display_name ||
+                                'Velvet Member'}
+                            </strong>
 
-
+                            <small>
+                              Level {member.level ?? 1}
+                            </small>
+                          </div>
                         </div>
 
-
-
-
-
-                        <div>
-
-
-                          <strong>
-
-                            {
-                              member.display_name ||
-                              "Velvet Member"
-                            }
-
-                          </strong>
-
-
-
-                          <small>
-
-                            Level
-
-                            {' '}
-
-                            {
-                              member.level || 1
-                            }
-
-
-                          </small>
-
-
-                        </div>
-
-
-                      </div>
-
-
-
-
-
-                      <div className="leaderXP">
-
-
-                        <strong>
-
-                          {
-                            Number(
+                        <div
+                          style={{
+                            textAlign: 'right'
+                          }}
+                        >
+                          <b>
+                            {Number(
                               member.xp || 0
-                            )
-                            .toLocaleString()
-                          }
+                            ).toLocaleString()}
+                          </b>
 
-                        </strong>
-
-
-                        <small>
-                          XP
-                        </small>
-
-
+                          <small
+                            style={{
+                              display: 'block',
+                              color: '#6e606d',
+                              fontSize: 9,
+                              marginTop: 2
+                            }}
+                          >
+                            XP
+                          </small>
+                        </div>
                       </div>
-
-
-
-
-                    </div>
-
+                    )
                   )
+                ) : (
+                  <div className="rank">
+                    <div className="rankNum">—</div>
 
-                )
+                    <div>
+                      <strong>
+                        No rankings yet
+                      </strong>
 
-
-                :
-
-
-                (
-
-                  <div className="emptyState">
-
-
-                    <span>
-                      ◈
-                    </span>
-
-
-                    <strong>
-                      No rankings yet
-                    </strong>
-
-
-                    <p>
-                      Earn XP to appear on the leaderboard.
-                    </p>
-
-
+                      <small>
+                        Start earning XP to appear here.
+                      </small>
+                    </div>
                   </div>
+                )}
+              </div>
 
-                )
-
-              }
-
-
+              <p
+                style={{
+                  color: '#786b77',
+                  fontSize: 10,
+                  margin: '12px 0 0'
+                }}
+              >
+                Your current rank:{' '}
+                <span
+                  style={{
+                    color: '#e1a1c4'
+                  }}
+                >
+                  #{rank}
+                </span>
+              </p>
             </div>
-
-
           </section>
         </section>
-
-
       </div>
-
-
     </main>
-
   );
-
 }

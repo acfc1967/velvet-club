@@ -118,3 +118,22 @@ h2 { font-size: clamp(36px, 6vw, 64px); font-weight: 400; line-height: 1.05; mar
   .statCard strong { font-size: 21px; }
   .panel { padding: 16px; }
 }
+.achievementDescription {
+  margin-top: 8px;
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+
+.achievementMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+
+.achievementDate {
+  display: block;
+  margin-top: 10px;
+  opacity: 0.7;
+}

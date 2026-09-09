@@ -8,6 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.57.0",
     "jose": "latest",
     "next": "latest",
     "react": "latest",

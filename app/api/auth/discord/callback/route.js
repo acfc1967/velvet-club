@@ -5,251 +5,97 @@ import { createClient } from "@supabase/supabase-js";
 export async function GET(request) {
   const url = new URL(request.url);
 
-  // -----------------------------------------
-  // OAuth parameters
-  // -----------------------------------------
-
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
 
-  const storedState = request.cookies.get(
-    "velvet_oauth_state"
-  )?.value;
+  const storedState = request.cookies.get("velvet_oauth_state")?.value;
 
-  // -----------------------------------------
-  // Environment variables
-  // -----------------------------------------
-
-  const clientId = process.env.DISCORD_CLIENT_ID;
-  const clientSecret = process.env.DISCORD_CLIENT_SECRET;
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || url.origin;
   const sessionSecret = process.env.SESSION_SECRET;
 
-  const siteUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || url.origin;
-
-  const supabaseUrl =
-    process.env.NEXT_PUBLIC_SUPABASE_URL;
-
-  const supabaseServiceKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  // -----------------------------------------
-  // Validate configuration
-  // -----------------------------------------
-
-  if (
-    !clientId ||
-    !clientSecret ||
-    !sessionSecret ||
-    !supabaseUrl ||
-    !supabaseServiceKey
-  ) {
-    console.error(
-      "Missing required environment variables."
-    );
-
-    return NextResponse.redirect(
-      `${siteUrl}/?error=oauth_config`
-    );
+  if (!code || !state || state !== storedState) {
+    return NextResponse.redirect(`${siteUrl}/?error=oauth_state`);
   }
 
-  // -----------------------------------------
-  // Validate OAuth state
-  // -----------------------------------------
-
-  if (
-    !code ||
-    !state ||
-    !storedState ||
-    state !== storedState
-  ) {
-    return NextResponse.redirect(
-      `${siteUrl}/?error=oauth_state`
-    );
-  }
-
-  // -----------------------------------------
-  // Exchange Discord authorization code
-  // -----------------------------------------
-
-  const redirectUri =
-    `${siteUrl}/api/auth/discord/callback`;
-
-  const tokenResponse = await fetch(
-    "https://discord.com/api/oauth2/token",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type":
-          "application/x-www-form-urlencoded",
-      },
-      body: new URLSearchParams({
-        client_id: clientId,
-        client_secret: clientSecret,
-        grant_type: "authorization_code",
-        code,
-        redirect_uri: redirectUri,
-      }),
-      cache: "no-store",
-    }
-  );
+  const tokenResponse = await fetch("https://discord.com/api/oauth2/token", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({
+      client_id: process.env.DISCORD_CLIENT_ID,
+      client_secret: process.env.DISCORD_CLIENT_SECRET,
+      grant_type: "authorization_code",
+      code,
+      redirect_uri: `${siteUrl}/api/auth/discord/callback`,
+    }),
+  });
 
   if (!tokenResponse.ok) {
-    console.error(
-      "Discord token exchange failed:",
-      await tokenResponse.text()
-    );
-
-    return NextResponse.redirect(
-      `${siteUrl}/?error=oauth_token`
-    );
+    return NextResponse.redirect(`${siteUrl}/?error=oauth_token`);
   }
 
   const token = await tokenResponse.json();
 
-  // -----------------------------------------
-  // Retrieve Discord user
-  // -----------------------------------------
-
-  const userResponse = await fetch(
-    "https://discord.com/api/v10/users/@me",
-    {
-      headers: {
-        Authorization:
-          `Bearer ${token.access_token}`,
-      },
-      cache: "no-store",
-    }
-  );
+  const userResponse = await fetch("https://discord.com/api/v10/users/@me", {
+    headers: {
+      Authorization: `Bearer ${token.access_token}`,
+    },
+  });
 
   if (!userResponse.ok) {
-    console.error(
-      "Discord user request failed:",
-      await userResponse.text()
-    );
-
-    return NextResponse.redirect(
-      `${siteUrl}/?error=oauth_user`
-    );
+    return NextResponse.redirect(`${siteUrl}/?error=oauth_user`);
   }
 
   const user = await userResponse.json();
 
-  // -----------------------------------------
-  // Build Discord avatar URL
-  // -----------------------------------------
-
-  let avatarUrl = null;
-
-  if (user.avatar) {
-    const extension = user.avatar.startsWith("a_")
-      ? "gif"
-      : "png";
-
-    avatarUrl =
-      `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.${extension}`;
-  }
-
-  // -----------------------------------------
-  // Create Supabase admin client
-  // -----------------------------------------
+  const avatarUrl = user.avatar
+    ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`
+    : null;
 
   const supabase = createClient(
-    supabaseUrl,
-    supabaseServiceKey,
-    {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    }
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
   );
 
-  // -----------------------------------------
-  // Create or update Velvet profile
-  // -----------------------------------------
+  const { error } = await supabase
+    .from("profiles")
+    .upsert({
+      discord_id: user.id,
+      username: user.username,
+      avatar_url: avatarUrl,
+      display_name: user.global_name || user.username,
+      updated_at: new Date().toISOString(),
+    }, {
+      onConflict: "discord_id",
+    });
 
-  const { error: profileError } =
-    await supabase
-      .from("profiles")
-      .upsert(
-        {
-          discord_id: user.id,
-          username: user.username,
-          avatar_url: avatarUrl,
-          display_name:
-            user.global_name || user.username,
-          updated_at:
-            new Date().toISOString(),
-        },
-        {
-          onConflict: "discord_id",
-        }
-      );
-
-  if (profileError) {
-    console.error(
-      "Velvet profile upsert failed:",
-      profileError
-    );
-
-    return NextResponse.redirect(
-      `${siteUrl}/?error=profile_failed`
-    );
+  if (error) {
+    console.error("SUPABASE PROFILE ERROR:", error.message, error.details, error.hint);
   }
-
-  // -----------------------------------------
-  // Create Velvet session
-  // -----------------------------------------
 
   const session = await new SignJWT({
     id: user.id,
     username: user.username,
-    display_name:
-      user.global_name || user.username,
+    display_name: user.global_name || user.username,
     avatar: avatarUrl,
   })
-    .setProtectedHeader({
-      alg: "HS256",
-    })
+    .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("7d")
-    .sign(
-      new TextEncoder().encode(sessionSecret)
-    );
+    .sign(new TextEncoder().encode(sessionSecret));
 
-  // -----------------------------------------
-  // Redirect to dashboard
-  // -----------------------------------------
+  const response = NextResponse.redirect(`${siteUrl}/dashboard`);
 
-  const response =
-    NextResponse.redirect(
-      `${siteUrl}/dashboard`
-    );
+  response.cookies.set("velvet_session", session, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+    maxAge: 60 * 60 * 24 * 7,
+    path: "/",
+  });
 
-  // -----------------------------------------
-  // Store session cookie
-  // -----------------------------------------
-
-  response.cookies.set(
-    "velvet_session",
-    session,
-    {
-      httpOnly: true,
-      secure: true,
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7,
-      path: "/",
-    }
-  );
-
-  // -----------------------------------------
-  // Remove OAuth state cookie
-  // -----------------------------------------
-
-  response.cookies.delete(
-    "velvet_oauth_state"
-  );
+  response.cookies.delete("velvet_oauth_state");
 
   return response;
 }

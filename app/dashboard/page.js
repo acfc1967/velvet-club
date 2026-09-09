@@ -32,6 +32,8 @@ function supabaseClient() {
 
 async function getDashboardData(discordId) {
   if (!discordId) {
+    console.error('VELVET DEBUG: No Discord ID supplied');
+
     return {
       profile: null,
       achievements: [],
@@ -41,6 +43,12 @@ async function getDashboardData(discordId) {
   }
 
   const supabase = supabaseClient();
+
+  /*
+    ============================
+    PROFILE
+    ============================
+  */
 
   const {
     data: profile,
@@ -52,8 +60,17 @@ async function getDashboardData(discordId) {
     .single();
 
   if (profileError) {
-    console.error('VELVET PROFILE ERROR:', profileError);
+    console.error(
+      'VELVET PROFILE ERROR:',
+      profileError
+    );
   }
+
+  /*
+    ============================
+    ACHIEVEMENTS
+    ============================
+  */
 
   const {
     data: achievementLinks,
@@ -62,7 +79,9 @@ async function getDashboardData(discordId) {
     .from('member_achievements')
     .select('achievement_id, unlocked_at')
     .eq('discord_id', discordId)
-    .order('unlocked_at', { ascending: false });
+    .order('unlocked_at', {
+      ascending: false
+    });
 
   if (achievementLinksError) {
     console.error(
@@ -73,7 +92,10 @@ async function getDashboardData(discordId) {
 
   let achievements = [];
 
-  if (!achievementLinksError && achievementLinks?.length) {
+  if (
+    !achievementLinksError &&
+    achievementLinks?.length
+  ) {
     const ids = achievementLinks.map(
       item => item.achievement_id
     );
@@ -103,26 +125,45 @@ async function getDashboardData(discordId) {
 
     const byId = new Map(
       (definitions || []).map(
-        item => [item.id, item]
+        item => [
+          item.id,
+          item
+        ]
       )
     );
 
     achievements = achievementLinks
       .map(item => ({
         unlocked_at: item.unlocked_at,
+
         achievements:
-          byId.get(item.achievement_id) || null
+          byId.get(
+            item.achievement_id
+          ) || null
       }))
-      .filter(item => item.achievements);
+      .filter(
+        item => item.achievements
+      );
   }
+
+  /*
+    ============================
+    TITLES
+    ============================
+  */
 
   const {
     data: titleLinks,
     error: titleLinksError
   } = await supabase
     .from('member_titles')
-    .select('title_id, unlocked_at, equipped')
-    .eq('discord_id', discordId);
+    .select(
+      'title_id, unlocked_at, equipped'
+    )
+    .eq(
+      'discord_id',
+      discordId
+    );
 
   if (titleLinksError) {
     console.error(
@@ -133,7 +174,10 @@ async function getDashboardData(discordId) {
 
   let titles = [];
 
-  if (!titleLinksError && titleLinks?.length) {
+  if (
+    !titleLinksError &&
+    titleLinks?.length
+  ) {
     const ids = titleLinks.map(
       item => item.title_id
     );
@@ -143,7 +187,9 @@ async function getDashboardData(discordId) {
       error: definitionsError
     } = await supabase
       .from('titles')
-      .select('id, title_name')
+      .select(
+        'id, title_name'
+      )
       .in('id', ids);
 
     if (definitionsError) {
@@ -155,19 +201,36 @@ async function getDashboardData(discordId) {
 
     const byId = new Map(
       (definitions || []).map(
-        item => [item.id, item]
+        item => [
+          item.id,
+          item
+        ]
       )
     );
 
     titles = titleLinks
       .map(item => ({
-        unlocked_at: item.unlocked_at,
-        equipped: item.equipped === true,
+        unlocked_at:
+          item.unlocked_at,
+
+        equipped:
+          item.equipped === true,
+
         titles:
-          byId.get(item.title_id) || null
+          byId.get(
+            item.title_id
+          ) || null
       }))
-      .filter(item => item.titles);
+      .filter(
+        item => item.titles
+      );
   }
+
+  /*
+    ============================
+    LEADERBOARD
+    ============================
+  */
 
   const {
     data: leaderboard,
@@ -181,7 +244,9 @@ async function getDashboardData(discordId) {
       title,
       avatar_url
     `)
-    .order('xp', { ascending: false })
+    .order('xp', {
+      ascending: false
+    })
     .limit(5);
 
   if (leaderboardError) {
@@ -195,658 +260,808 @@ async function getDashboardData(discordId) {
     profile,
     achievements,
     titles,
-    leaderboard: leaderboard || []
+    leaderboard:
+      leaderboard || []
   };
 }
 
 export default async function Dashboard() {
-  const session = await getSession();
+    const session = await getSession();
+
+  const discordId =
+    session?.id ||
+    session?.discord_id ||
+    null;
 
   const {
     profile,
     achievements,
     titles,
     leaderboard
-  } = await getDashboardData(session?.id);
-
-  const displayName =
-    profile?.display_name ||
-    session?.username ||
-    'Velvet Member';
-
-  const avatarUrl =
-    profile?.avatar_url ||
-    session?.avatar ||
-    null;
-
-  const initial = displayName
-    .charAt(0)
-    .toUpperCase();
-
-  const level = Number(profile?.level) || 1;
-  const xp = Number(profile?.xp) || 0;
-  const coins = Number(profile?.coins) || 0;
-
-  const equippedTitle = titles.find(
-    item => item.equipped
+  } = await getDashboardData(
+    discordId
   );
 
-  const title =
-    profile?.title ||
-    equippedTitle?.titles?.title_name ||
+
+  const xp =
+    profile?.xp || 0;
+
+  const level =
+    profile?.level || 1;
+
+  const coins =
+    profile?.coins || 0;
+
+
+  const currentTitle =
+    titles.find(
+      item => item.equipped
+    )?.titles?.title_name
+    ||
+    profile?.title
+    ||
     'New Member';
 
-  const nextLevel = (level + 1) * 1000;
 
-  const xpPercent = Math.min(
-    Math.max((xp / nextLevel) * 100, 0),
-    100
-  );
+  const nextLevelXP =
+    5000;
 
-  const xpRemaining = Math.max(
-    nextLevel - xp,
-    0
-  );
 
-  const achievementItems = achievements.map(
-    item => ({
-      name:
-        item.achievements?.achievement_name ||
-        'Unknown Achievement',
-      description:
-        item.achievements?.description ||
-        'A Velvet achievement.',
-      rarity:
-        item.achievements?.rarity ||
-        'Common',
-      icon:
-        item.achievements?.icon ||
-        '🏆',
-      xpReward:
-        Number(item.achievements?.xp_reward) || 0,
-      coinReward:
-        Number(item.achievements?.coin_reward) || 0,
-      unlockedAt: item.unlocked_at
-    })
-  );
+  const progress =
+    Math.min(
+      (xp / nextLevelXP) * 100,
+      100
+    );
 
-  const titleItems = titles.map(
-    item => ({
-      name:
-        item.titles?.title_name ||
-        'Unknown Title',
-      equipped: item.equipped === true,
-      unlockedAt: item.unlocked_at
-    })
-  );
 
-  const rarityStyles = {
-    Common: {
-      color: '#b9acb7'
-    },
-    Rare: {
-      color: '#78a9ff'
-    },
-    Epic: {
-      color: '#c084fc'
-    },
-    Legendary: {
-      color: '#f0b45d'
-    }
-  };
+  const xpRemaining =
+    Math.max(
+      nextLevelXP - xp,
+      0
+    );
 
-  const memberRank =
-    leaderboard.findIndex(
-      member =>
-        member.display_name ===
-        profile?.display_name
-    ) + 1;
 
-  const rank =
-    memberRank > 0 ? memberRank : '—';
+  function formatDate(date) {
+
+    if (!date) return '';
+
+    return new Date(date)
+      .toLocaleDateString(
+        'en-GB',
+        {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric'
+        }
+      );
+
+  }
+
 
   return (
-    <main className="dashboardShell">
-      <div className="dashboardGlow" />
+    <main className="dashboard">
 
-      <div className="dashboardLayout">
-        <aside className="sidebar">
-          <div className="sideBrand">
-            <span>✦</span> VELVET
-          </div>
+      <section className="dashboardHero">
 
-          <div className="sideLabel">
-            CLUB
-          </div>
+        <div>
 
-          <nav className="sideNav">
-            <a
-              className="active"
-              href="/dashboard"
-            >
-              ⌂ <span>Overview</span>
-            </a>
+          <p className="eyebrow">
+            MEMBER DASHBOARD
+          </p>
 
-            <a href="#profile">
-              ◉ <span>Profile</span>
-            </a>
+          <h1>
+            Welcome back,
+            <span>
+              {' '}
+              {profile?.display_name || 'Member'}.
+            </span>
+          </h1>
 
-            <a href="#progress">
-              ✦ <span>Progress</span>
-            </a>
+          <p className="subtitle">
+            Your Velvet journey,
+            all in one place.
+          </p>
 
-            <a href="#achievements">
-              ♜ <span>Achievements</span>
-            </a>
+        </div>
 
-            <a href="#titles">
-              ♛ <span>Titles</span>
-            </a>
 
-            <a href="#leaderboard">
-              ◈ <span>Leaderboard</span>
-            </a>
-          </nav>
+        <div className="profileBadge">
 
-          <div className="sideBottom">
-            <small>VELVET CLUB</small>
+          {profile?.avatar_url && (
 
-            <strong>
-              Same Souls • Brighter Nights ♡
-            </strong>
-          </div>
-        </aside>
+            <img
+              src={profile.avatar_url}
+              alt="Avatar"
+            />
 
-        <section
-          className="mainPanel"
-          id="top"
+          )}
+
+          <span>
+            {profile?.display_name}
+          </span>
+
+        </div>
+
+
+      </section>
+
+
+
+      <section className="statGrid">
+
+
+        <div className="statCard">
+
+          <span>
+            ✦
+          </span>
+
+          <label>
+            LEVEL
+          </label>
+
+          <strong>
+            {level}
+          </strong>
+
+          <small>
+            {currentTitle}
+          </small>
+
+        </div>
+
+
+
+        <div className="statCard">
+
+          <span>
+            ◇
+          </span>
+
+          <label>
+            VELVET XP
+          </label>
+
+          <strong>
+            {xp}
+          </strong>
+
+          <small>
+            XP
+          </small>
+
+        </div>
+
+
+
+        <div className="statCard">
+
+          <span>
+            ◆
+          </span>
+
+          <label>
+            COINS
+          </label>
+
+          <strong>
+            {coins.toLocaleString()}
+          </strong>
+
+          <small>
+            Velvet Coins
+          </small>
+
+        </div>
+
+
+
+        <div className="statCard">
+
+          <span>
+            🏆
+          </span>
+
+          <label>
+            ACHIEVEMENTS
+          </label>
+
+          <strong>
+            {achievements.length}
+          </strong>
+
+          <small>
+            unlocked
+          </small>
+
+        </div>
+
+
+      </section>
+      <section className="contentGrid">
+
+
+        <div
+          className="panel"
+          id="progress"
         >
-          <header className="topbar">
-            <div className="profileChip">
-              <div
-                className="avatar"
-                style={
-                  avatarUrl
-                    ? {
-                        backgroundImage:
-                          `url(${avatarUrl})`
-                      }
-                    : undefined
-                }
-              >
-                {!avatarUrl && initial}
-              </div>
 
-              <span>{displayName}</span>
-            </div>
-          </header>
+          <div className="panelHeader">
 
-          <div
-            className="welcome"
-            id="profile"
-          >
-            <p className="eyebrow">
-              MEMBER DASHBOARD
-            </p>
+            <h2>
+              YOUR PROGRESS
+            </h2>
 
-            <h1>
-              Welcome back,
-              <em>
-                {displayName}.
-              </em>
-            </h1>
-
-            <p>
-              Your Velvet journey, all in one place.
-            </p>
           </div>
 
-          <section className="gridStats">
-            <div className="statCard">
-              <div className="statIcon">✦</div>
-              <small>Level</small>
-              <strong>{level}</strong>
-              <em>{title}</em>
-            </div>
 
-            <div className="statCard">
-              <div className="statIcon">◇</div>
-              <small>Velvet XP</small>
-              <strong>
-                {xp.toLocaleString()}
-              </strong>
-              <em>
-                / {nextLevel.toLocaleString()}
-              </em>
-            </div>
+          <div className="progressBox">
 
-            <div className="statCard">
-              <div className="statIcon">◆</div>
-              <small>Coins</small>
-              <strong>
-                {coins.toLocaleString()}
-              </strong>
-              <em>Velvet Coins</em>
-            </div>
 
-            <div className="statCard">
-              <div className="statIcon">🏆</div>
-              <small>Achievements</small>
-              <strong>
-                {achievementItems.length}
-              </strong>
-              <em>earned</em>
-            </div>
-          </section>
+            <div className="progressInfo">
 
-          <section className="contentGrid">
-            <div
-              className="panel"
-              id="progress"
-            >
-              <div className="panelHeader">
-                <h2>YOUR PROGRESS</h2>
+              <div>
+
+                <small>
+                  CURRENT LEVEL
+                </small>
+
+                <strong>
+                  {level}
+                </strong>
+
               </div>
 
-              <p
+
+
+              <div>
+
+                <small>
+                  NEXT LEVEL
+                </small>
+
+                <strong>
+                  {nextLevelXP}
+                  XP
+                </strong>
+
+              </div>
+
+
+            </div>
+
+
+
+            <div className="xpBar">
+
+              <div
+
+                className="xpFill"
+
                 style={{
-                  color: '#b9acb7',
-                  fontSize: 13,
-                  margin: '0 0 15px'
+                  width:
+                    `${progress}%`
                 }}
-              >
-                Level {level}
-                <span
-                  style={{
-                    color: '#716471'
-                  }}
-                >
-                  {' '}•{' '}
-                </span>
-                {title}
-              </p>
 
-              <div className="xpBar">
-                <div
-                  className="xpFill"
-                  style={{
-                    width: `${xpPercent}%`
-                  }}
-                />
-              </div>
+              />
 
-              <div className="xpMeta">
-                <span>
-                  {xp.toLocaleString()} XP
-                </span>
-
-                <span>
-                  {nextLevel.toLocaleString()} XP
-                </span>
-              </div>
-
-              <p
-                style={{
-                  color: '#786b77',
-                  fontSize: 10,
-                  margin: '13px 0 0'
-                }}
-              >
-                {xpRemaining.toLocaleString()} XP until
-                the next level.
-              </p>
             </div>
 
-            <div
-              className="panel"
-              id="achievements"
-            >
-              <div className="panelHeader">
-                <h2>RECENT ACHIEVEMENTS</h2>
 
-                <span
-                  style={{
-                    color: '#786b77',
-                    fontSize: 10
-                  }}
-                >
-                  {achievementItems.length} earned
-                </span>
-              </div>
 
-              {achievementItems.length ? (
-                achievementItems
-                  .slice(0, 5)
-                  .map(
-                    (
-                      achievement,
-                      index
-                    ) => {
-                      const rarityStyle =
-                        rarityStyles[
-                          achievement.rarity
-                        ] ||
-                        rarityStyles.Common;
+            <div className="xpFooter">
 
-                      return (
-                        <div
-                          className="achievement"
-                          key={`${achievement.name}-${index}`}
-                        >
-                          <div
-                            className="achievementBadge"
-                            style={{
-                              borderColor:
-                                rarityStyle.color,
-                              boxShadow:
-                                `0 0 16px ${rarityStyle.color}22`
-                            }}
-                          >
-                            {achievement.icon}
-                          </div>
+              <span>
+                {xp} XP
+              </span>
 
-                          <div className="achievementText">
-                            <strong>
-                              {achievement.name}
-                            </strong>
 
-                            <small>
-                              {achievement.description}
-                            </small>
+              <span>
+                {xpRemaining} XP remaining
+              </span>
 
-                            <small>
-                              <span
-                                style={{
-                                  color:
-                                    rarityStyle.color,
-                                  fontWeight: 700
-                                }}
-                              >
-                                {achievement.rarity.toUpperCase()}
-                              </span>
-                              {' • '}
-                              ⭐ +{achievement.xpReward} XP
-                              {' • '}
-                              💰 +{achievement.coinReward} Coins
-                            </small>
 
-                            {achievement.unlockedAt && (
-                              <small>
-                                Unlocked{' '}
-                                {new Date(
-                                  achievement.unlockedAt
-                                ).toLocaleDateString(
-                                  'en-GB',
-                                  {
-                                    day: 'numeric',
-                                    month: 'short',
-                                    year: 'numeric'
-                                  }
-                                )}
-                              </small>
-                            )}
-                          </div>
-                        </div>
-                      );
+            </div>
+
+
+          </div>
+
+
+        </div>
+
+
+
+
+
+        <div
+          className="panel"
+          id="achievements"
+        >
+
+
+          <div className="panelHeader">
+
+            <h2>
+              ACHIEVEMENTS
+            </h2>
+
+
+            <span>
+
+              {achievements.length}
+
+              {' '}
+              unlocked
+
+            </span>
+
+
+          </div>
+
+
+
+
+
+          {
+            achievements.length > 0
+
+            ?
+
+            achievements.map(
+
+              (
+                item,
+                index
+              ) => {
+
+
+                const achievement =
+                  item.achievements;
+
+
+                return (
+
+                  <div
+
+                    className="achievement"
+
+                    key={
+                      `${achievement.id}-${index}`
                     }
-                  )
-              ) : (
-                <div className="achievement">
-                  <div className="achievementBadge">
-                    ✦
-                  </div>
 
-                  <div className="achievementText">
-                    <strong>
-                      Your story starts here
-                    </strong>
+                  >
 
-                    <small>
-                      Keep exploring Velvet to unlock achievements.
-                    </small>
-                  </div>
-                </div>
-              )}
-            </div>
 
-            <div
-              className="panel"
-              id="titles"
-            >
-              <div className="panelHeader">
-                <h2>YOUR TITLES</h2>
 
-                <span
-                  style={{
-                    color: '#786b77',
-                    fontSize: 10
-                  }}
-                >
-                  {titleItems.length} unlocked
-                </span>
-              </div>
+                    <div className="achievementBadge">
 
-              {titleItems.length ? (
-                titleItems.map(
-                  (
-                    item,
-                    index
-                  ) => (
-                    <div
-                      className="achievement"
-                      key={`${item.name}-${index}`}
-                    >
-                      <div
-                        className="achievementBadge"
-                        style={
-                          item.equipped
-                            ? {
-                                borderColor: '#e6a4c8',
-                                boxShadow:
-                                  '0 0 18px rgba(230,164,200,.18)'
-                              }
-                            : undefined
-                        }
-                      >
-                        {item.equipped
-                          ? '👑'
-                          : '✦'}
-                      </div>
+                      {
+                        achievement.icon ||
+                        "🏆"
+                      }
 
-                      <div className="achievementText">
-                        <strong>
-                          {item.name}
-                        </strong>
-
-                        <small>
-                          {item.equipped
-                            ? 'Currently equipped'
-                            : 'Unlocked title'}
-                        </small>
-
-                        {item.unlockedAt && (
-                          <small>
-                            Unlocked{' '}
-                            {new Date(
-                              item.unlockedAt
-                            ).toLocaleDateString(
-                              'en-GB',
-                              {
-                                day: 'numeric',
-                                month: 'short',
-                                year: 'numeric'
-                              }
-                            )}
-                          </small>
-                        )}
-                      </div>
                     </div>
-                  )
-                )
-              ) : (
-                <div className="achievement">
-                  <div className="achievementBadge">
-                    ♛
-                  </div>
 
-                  <div className="achievementText">
-                    <strong>
-                      No titles yet
-                    </strong>
 
-                    <small>
-                      Unlock titles as your Velvet journey continues.
-                    </small>
-                  </div>
-                </div>
-              )}
-            </div>
 
-            <div
-              className="panel"
-              id="leaderboard"
-            >
-              <div className="panelHeader">
-                <h2>LEADERBOARD</h2>
 
-                <span
-                  style={{
-                    color: '#786b77',
-                    fontSize: 10
-                  }}
-                >
-                  Top 5
-                </span>
-              </div>
 
-              <div className="rankList">
-                {leaderboard.length ? (
-                  leaderboard.map(
-                    (
-                      member,
-                      index
-                    ) => (
-                      <div
-                        className="rank"
-                        key={`${member.display_name || 'member'}-${index}`}
-                      >
-                        <div className="rankNum">
-                          {String(index + 1).padStart(2, '0')}
-                        </div>
+                    <div className="achievementText">
 
-                        <div
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 9,
-                            minWidth: 0
-                          }}
-                        >
-                          <div
-                            className="avatar"
-                            style={
-                              member.avatar_url
-                                ? {
-                                    width: 30,
-                                    height: 30,
-                                    flexShrink: 0,
-                                    backgroundImage:
-                                      `url(${member.avatar_url})`
-                                  }
-                                : {
-                                    width: 30,
-                                    height: 30,
-                                    flexShrink: 0
-                                  }
-                            }
-                          >
-                            {!member.avatar_url &&
-                              (
-                                member.display_name ||
-                                '?'
-                              )
-                                .charAt(0)
-                                .toUpperCase()}
-                          </div>
 
-                          <div
-                            style={{
-                              minWidth: 0
-                            }}
-                          >
-                            <strong>
-                              {member.display_name ||
-                                'Velvet Member'}
-                            </strong>
-
-                            <small>
-                              Level {member.level ?? 1}
-                            </small>
-                          </div>
-                        </div>
-
-                        <div
-                          style={{
-                            textAlign: 'right'
-                          }}
-                        >
-                          <b>
-                            {Number(
-                              member.xp || 0
-                            ).toLocaleString()}
-                          </b>
-
-                          <small
-                            style={{
-                              display: 'block',
-                              color: '#6e606d',
-                              fontSize: 9,
-                              marginTop: 2
-                            }}
-                          >
-                            XP
-                          </small>
-                        </div>
-                      </div>
-                    )
-                  )
-                ) : (
-                  <div className="rank">
-                    <div className="rankNum">—</div>
-
-                    <div>
                       <strong>
-                        No rankings yet
+
+                        {
+                          achievement.achievement_name
+                        }
+
                       </strong>
 
-                      <small>
-                        Start earning XP to appear here.
+
+
+
+
+                      <p className="achievementDescription">
+
+                        {
+                          achievement.description
+                        }
+
+                      </p>
+
+
+
+
+
+                      <div className="achievementMeta">
+
+
+                        <span className="achievementRarity">
+
+                          {
+                            (
+                              achievement.rarity ||
+                              "COMMON"
+                            )
+                            .toUpperCase()
+                          }
+
+                        </span>
+
+
+
+
+
+                        <span>
+
+                          ⭐
+
+                          +
+
+                          {
+                            achievement.xp_reward ||
+                            0
+                          }
+
+                          XP
+
+                        </span>
+
+
+
+
+
+                        <span>
+
+                          💰
+
+                          +
+
+                          {
+                            achievement.coin_reward ||
+                            0
+                          }
+
+                          Coins
+
+                        </span>
+
+
+                      </div>
+
+
+
+
+
+                      <small className="achievementDate">
+
+                        Unlocked:
+
+                        {' '}
+
+                        {
+                          formatDate(
+                            item.unlocked_at
+                          )
+                        }
+
                       </small>
+
+
                     </div>
+
+
                   </div>
-                )}
+
+
+                );
+
+
+              }
+
+            )
+
+
+            :
+
+            (
+
+              <div className="emptyState">
+
+                <strong>
+                  No achievements yet
+                </strong>
+
+                <p>
+                  Unlock achievements as your Velvet journey continues.
+                </p>
+
               </div>
 
-              <p
-                style={{
-                  color: '#786b77',
-                  fontSize: 10,
-                  margin: '12px 0 0'
-                }}
-              >
-                Your current rank:{' '}
-                <span
-                  style={{
-                    color: '#e1a1c4'
-                  }}
+            )
+
+          }
+
+
+        </div>
+        <div
+          className="panel"
+          id="titles"
+        >
+
+          <div className="panelHeader">
+
+            <h2>
+              YOUR TITLES
+            </h2>
+
+            <span>
+              {titles.length} unlocked
+            </span>
+
+          </div>
+
+
+          {
+            titles.length > 0
+
+            ?
+
+            titles.map(
+
+              (
+                item,
+                index
+              ) => {
+
+                const titleName =
+                  item.titles?.title_name ||
+                  'Unknown Title';
+
+                return (
+
+                  <div
+                    className="achievement"
+                    key={
+                      `${titleName}-${index}`
+                    }
+                  >
+
+                    <div
+                      className="achievementBadge"
+                      style={
+                        item.equipped
+                          ? {
+                              borderColor:
+                                '#e6a4c8',
+                              boxShadow:
+                                '0 0 18px rgba(230,164,200,.18)'
+                            }
+                          : undefined
+                      }
+                    >
+
+                      {
+                        item.equipped
+                          ? '👑'
+                          : '✦'
+                      }
+
+                    </div>
+
+
+                    <div className="achievementText">
+
+                      <strong>
+                        {titleName}
+                      </strong>
+
+
+                      <p className="achievementDescription">
+
+                        {
+                          item.equipped
+                            ? 'Currently equipped'
+                            : 'Unlocked title'
+                        }
+
+                      </p>
+
+
+                      {
+                        item.unlocked_at && (
+
+                          <small className="achievementDate">
+
+                            Unlocked:
+
+                            {' '}
+
+                            {
+                              formatDate(
+                                item.unlocked_at
+                              )
+                            }
+
+                          </small>
+
+                        )
+                      }
+
+                    </div>
+
+                  </div>
+
+                );
+
+              }
+
+            )
+
+            :
+
+            (
+
+              <div className="emptyState">
+
+                <strong>
+                  No titles yet
+                </strong>
+
+                <p>
+                  Unlock titles as your Velvet journey continues.
+                </p>
+
+              </div>
+
+            )
+
+          }
+
+        </div>
+        <div
+          className="panel"
+          id="leaderboard"
+        >
+
+          <div className="panelHeader">
+
+            <h2>
+              LEADERBOARD
+            </h2>
+
+          </div>
+
+
+
+          {
+            leaderboard.length > 0
+
+            ?
+
+            leaderboard.map(
+
+              (
+                member,
+                index
+              ) => (
+
+                <div
+                  className="rank"
+                  key={
+                    `${member.display_name}-${index}`
+                  }
                 >
-                  #{rank}
-                </span>
-              </p>
-            </div>
-          </section>
-        </section>
-      </div>
+
+
+                  <div className="rankNumber">
+
+                    {
+                      String(
+                        index + 1
+                      )
+                      .padStart(
+                        2,
+                        '0'
+                      )
+                    }
+
+                  </div>
+
+
+
+                  <div className="rankMember">
+
+
+                    <strong>
+
+                      {
+                        member.display_name ||
+                        'Velvet Member'
+                      }
+
+                    </strong>
+
+
+                    <small>
+
+                      Level
+
+                      {' '}
+
+                      {
+                        member.level ||
+                        1
+                      }
+
+                    </small>
+
+
+                  </div>
+
+
+
+                  <div className="rankXP">
+
+                    <strong>
+
+                      {
+                        Number(
+                          member.xp || 0
+                        )
+                        .toLocaleString()
+                      }
+
+                    </strong>
+
+
+                    <small>
+                      XP
+                    </small>
+
+
+                  </div>
+
+
+                </div>
+
+              )
+
+            )
+
+
+            :
+
+            (
+
+              <div className="emptyState">
+
+                <strong>
+                  No leaderboard data
+                </strong>
+
+
+                <p>
+                  Earn XP to appear here.
+                </p>
+
+
+              </div>
+
+            )
+
+          }
+
+
+        </div>
+
+
+
+      </section>
+
+
     </main>
+
   );
+
 }

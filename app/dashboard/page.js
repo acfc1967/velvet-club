@@ -24,34 +24,48 @@ function supabaseClient() {
 
 async function getDashboardData(discordId) {
   if (!discordId) {
+    console.error('VELVET DEBUG: No Discord ID supplied to dashboard');
     return { profile: null, achievements: [], titles: [], leaderboard: [] };
   }
 
   const supabase = supabaseClient();
 
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('*')
     .eq('discord_id', discordId)
     .single();
 
-  // Resolve member_achievements -> achievements explicitly.
-  // This matches the current schema and does not depend on a generated
-  // Supabase relationship name.
+  // Temporary server-side diagnostics so we can verify exactly what the
+  // dashboard receives from the session and Supabase.
+  console.log('VELVET DEBUG DISCORD ID:', discordId);
+  console.log('VELVET DEBUG PROFILE:', profile);
+  if (profileError) console.error('VELVET DEBUG PROFILE ERROR:', profileError);
+
   const { data: achievementLinks, error: achievementLinksError } = await supabase
     .from('member_achievements')
     .select('achievement_id, unlocked_at')
     .eq('discord_id', discordId)
     .order('unlocked_at', { ascending: false });
 
+  console.log('VELVET DEBUG ACHIEVEMENT LINKS:', achievementLinks);
+  if (achievementLinksError) {
+    console.error('VELVET DEBUG ACHIEVEMENT ERROR:', achievementLinksError);
+  }
+
   let achievements = [];
 
   if (!achievementLinksError && achievementLinks?.length) {
     const ids = achievementLinks.map((item) => item.achievement_id);
-    const { data: definitions } = await supabase
+    const { data: definitions, error: definitionsError } = await supabase
       .from('achievements')
       .select('id, achievement_name, description')
       .in('id', ids);
+
+    console.log('VELVET DEBUG ACHIEVEMENT DEFINITIONS:', definitions);
+    if (definitionsError) {
+      console.error('VELVET DEBUG ACHIEVEMENT DEFINITIONS ERROR:', definitionsError);
+    }
 
     const byId = new Map((definitions || []).map((item) => [item.id, item]));
 
@@ -94,6 +108,9 @@ async function getDashboardData(discordId) {
     .order('xp', { ascending: false })
     .limit(5);
 
+  console.log('VELVET DEBUG FINAL ACHIEVEMENT COUNT:', achievements.length);
+  console.log('VELVET DEBUG FINAL TITLE COUNT:', titles.length);
+
   return {
     profile,
     achievements,
@@ -104,6 +121,10 @@ async function getDashboardData(discordId) {
 
 export default async function Dashboard() {
   const session = await getSession();
+
+  console.log('VELVET DEBUG SESSION:', session);
+  console.log('VELVET DEBUG SESSION ID:', session?.id);
+
   const { profile, achievements, titles, leaderboard } =
     await getDashboardData(session?.id);
 

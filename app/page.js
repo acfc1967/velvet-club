@@ -3,8 +3,12 @@ export default function Home() {
     <main className="hero">
       <div className="glow glowOne" />
       <div className="glow glowTwo" />
+      <div className="velvetOrb one" />
+      <div className="velvetOrb two" />
+      <div className="velvetOrb three" />
+
       <nav className="nav">
-        <div className="brand"><span>✦</span> VELVET</div>
+        <a className="brand" href="/" aria-label="Velvet Club home"><span>✦</span> VELVET</a>
         <a href="#about">About</a>
         <a href="#features">Features</a>
         <a className="navButton" href="/dashboard">Member Area</a>

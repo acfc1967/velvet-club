@@ -1,6 +1,28 @@
 export default function Home() {
   return (
     <main className="hero">
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media (max-width:700px){
+          .heroContent h1{
+            width:100%;
+            max-width:390px;
+            margin:20px auto 24px;
+            font-size:47px;
+            line-height:1.02;
+            letter-spacing:-.04em;
+            text-wrap:balance;
+          }
+          .heroContent .intro{
+            max-width:360px;
+            font-size:15px;
+            line-height:1.65;
+          }
+        }
+        @media (max-width:380px){
+          .heroContent h1{font-size:43px;}
+        }
+      `}} />
+
       <div className="velvetScene" aria-hidden="true">
         <div className="velvetMoon" />
         <div className="velvetHorizon" />

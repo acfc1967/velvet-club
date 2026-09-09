@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers';
 import { jwtVerify } from 'jose';
+import { createClient } from '@supabase/supabase-js';
 
 async function getSession() {
   const secret = process.env.SESSION_SECRET;
@@ -15,6 +16,28 @@ async function getSession() {
   }
 }
 
+async function getProfile(discordId) {
+  if (!discordId) return null;
+
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+  );
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('discord_id', discordId)
+    .single();
+
+  if (error) {
+    console.error('Profile fetch failed:', error);
+    return null;
+  }
+
+  return data;
+}
+
 const achievements = [
   ['🌹', 'Welcome to Velvet', 'Joined the community'],
   ['🎮', 'Player One', 'Reached level 10'],
@@ -25,20 +48,20 @@ const rankings = [
   ['01', 'Moonlight', 'Level 42', '12,840'],
   ['02', 'VelvetRose', 'Level 38', '11,220'],
   ['03', 'Nightfall', 'Level 35', '10,510'],
-  ['04', 'You', 'Level 24', '7,420'],
 ];
-
-function discordAvatarUrl(id, avatar) {
-  if (!id || !avatar) return null;
-  const extension = avatar.startsWith('a_') ? 'gif' : 'png';
-  return `https://cdn.discordapp.com/avatars/${id}/${avatar}.${extension}?size=128`;
-}
 
 export default async function Dashboard() {
   const session = await getSession();
-  const displayName = session?.global_name || session?.username || 'Velvet Member';
+  const profile = await getProfile(session?.id);
+
+  const displayName = profile?.display_name || session?.username || 'Velvet Member';
   const initial = displayName.charAt(0).toUpperCase();
-  const avatarUrl = discordAvatarUrl(session?.id, session?.avatar);
+  const avatarUrl = profile?.avatar_url || null;
+
+  const level = profile?.level ?? 1;
+  const xp = profile?.xp ?? 0;
+  const coins = profile?.coins ?? 0;
+  const title = profile?.title || 'New Member';
 
   return (
     <main className="dashboardShell">
@@ -52,13 +75,7 @@ export default async function Dashboard() {
             <a href="#profile">◉ <span>Profile</span></a>
             <a href="#progress">✦ <span>Progress</span></a>
             <a href="#achievements">♜ <span>Achievements</span></a>
-            <a href="#events">◈ <span>Events</span></a>
             <a href="#leaderboard">♛ <span>Leaderboard</span></a>
-          </nav>
-          <div className="sideLabel">SOON</div>
-          <nav className="sideNav">
-            <a href="#cosmetics">◇ <span>Cosmetics</span></a>
-            <a href="#titles">✧ <span>Titles</span></a>
           </nav>
           <div className="sideBottom">
             <small>VELVET CLUB</small>
@@ -68,13 +85,8 @@ export default async function Dashboard() {
 
         <section className="mainPanel">
           <header className="topbar">
-            <div className="mobileBrand"><span>✦</span> VELVET</div>
             <div className="profileChip">
-              <div
-                className="avatar"
-                style={avatarUrl ? { backgroundImage: `url(${avatarUrl})` } : undefined}
-                aria-label={`${displayName}'s Discord avatar`}
-              >
+              <div className="avatar" style={avatarUrl ? { backgroundImage: `url(${avatarUrl})` } : undefined}>
                 {!avatarUrl && initial}
               </div>
               <span>{displayName}</span>
@@ -88,47 +100,35 @@ export default async function Dashboard() {
           </div>
 
           <section className="gridStats">
-            <div className="statCard"><div className="statIcon">✦</div><small>Level</small><strong>24</strong><em>+2 this month</em></div>
-            <div className="statCard"><div className="statIcon">◇</div><small>Velvet XP</small><strong>7,420</strong><em>/ 8,000</em></div>
-            <div className="statCard"><div className="statIcon">◆</div><small>Coins</small><strong>12,850</strong></div>
-            <div className="statCard"><div className="statIcon">🏆</div><small>Achievements</small><strong>18</strong><em>/ 42</em></div>
+            <div className="statCard"><div className="statIcon">✦</div><small>Level</small><strong>{level}</strong><em>{title}</em></div>
+            <div className="statCard"><div className="statIcon">◇</div><small>Velvet XP</small><strong>{xp}</strong><em>/ {(level + 1) * 1000}</em></div>
+            <div className="statCard"><div className="statIcon">◆</div><small>Coins</small><strong>{coins}</strong></div>
+            <div className="statCard"><div className="statIcon">🏆</div><small>Achievements</small><strong>0</strong><em>/ 42</em></div>
           </section>
 
           <section className="contentGrid">
             <div className="panel" id="progress">
-              <div className="panelHeader"><h2>YOUR PROGRESS</h2><a href="#profile">View profile →</a></div>
-              <p style={{color:'#b9acb7',fontSize:13,marginTop:0}}>Level 24 <span style={{color:'#716471'}}>•</span> Velvet Regular</p>
+              <div className="panelHeader"><h2>YOUR PROGRESS</h2></div>
+              <p style={{color:'#b9acb7',fontSize:13}}>Level {level} <span style={{color:'#716471'}}>•</span> {title}</p>
               <div className="xpBar"><div className="xpFill" /></div>
-              <div className="xpMeta"><span>7,420 XP</span><span>8,000 XP</span></div>
-              <div style={{marginTop:22}}>
-                <span className="pill">🌹 Community</span><span className="pill">🎮 Gamer</span><span className="pill">🌙 Night Owl</span>
-              </div>
-            </div>
-
-            <div className="panel" id="events">
-              <div className="panelHeader"><h2>NEXT EVENT</h2><a href="#leaderboard">All events →</a></div>
-              <div className="eventCard">
-                <div className="eventDate">FRIDAY • 9:00 PM</div>
-                <h3>Velvet Game Night</h3>
-                <p>Jump into the community VC, pick a game and bring the chaos.</p>
-              </div>
+              <div className="xpMeta"><span>{xp} XP</span><span>{(level + 1) * 1000} XP</span></div>
             </div>
 
             <div className="panel" id="achievements">
-              <div className="panelHeader"><h2>RECENT ACHIEVEMENTS</h2><a href="#achievements">View all →</a></div>
-              {achievements.map(([icon, title, desc]) => (
-                <div className="achievement" key={title}>
+              <div className="panelHeader"><h2>RECENT ACHIEVEMENTS</h2></div>
+              {achievements.map(([icon, name, desc]) => (
+                <div className="achievement" key={name}>
                   <div className="achievementBadge">{icon}</div>
-                  <div className="achievementText"><strong>{title}</strong><small>{desc}</small></div>
+                  <div className="achievementText"><strong>{name}</strong><small>{desc}</small></div>
                 </div>
               ))}
             </div>
 
             <div className="panel" id="leaderboard">
-              <div className="panelHeader"><h2>LEADERBOARD</h2><a href="#leaderboard">Full board →</a></div>
+              <div className="panelHeader"><h2>LEADERBOARD</h2></div>
               <div className="rankList">
-                {rankings.map(([rank, name, level, xp]) => (
-                  <div className="rank" key={rank}><div className="rankNum">{rank}</div><div><strong>{name}</strong><small>{level}</small></div><b>{xp}</b></div>
+                {rankings.map(([rank, name, rankLevel, rankXp]) => (
+                  <div className="rank" key={rank}><div className="rankNum">{rank}</div><div><strong>{name}</strong><small>{rankLevel}</small></div><b>{rankXp}</b></div>
                 ))}
               </div>
             </div>

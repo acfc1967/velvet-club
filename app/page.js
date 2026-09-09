@@ -2,24 +2,45 @@ export default function Home() {
   return (
     <main className="hero">
       <style dangerouslySetInnerHTML={{ __html: `
+        .heroTitleMain,
+        .heroTitleAccent {
+          display: block;
+        }
+
+        .heroTitleAccent {
+          margin-top: .12em;
+        }
+
         @media (max-width:700px){
-          .heroContent h1{
+          .heroContent h1.heroTitle{
             width:100%;
             max-width:390px;
             margin:20px auto 24px;
             font-size:47px;
-            line-height:1.02;
+            line-height:.98;
             letter-spacing:-.04em;
             text-wrap:balance;
           }
+
+          .heroTitleMain,
+          .heroTitleAccent {
+            display:block;
+            width:100%;
+          }
+
+          .heroTitleAccent {
+            margin-top:.22em;
+          }
+
           .heroContent .intro{
             max-width:360px;
             font-size:15px;
             line-height:1.65;
           }
         }
+
         @media (max-width:380px){
-          .heroContent h1{font-size:43px;}
+          .heroContent h1.heroTitle{font-size:43px;}
         }
       `}} />
 
@@ -45,7 +66,10 @@ export default function Home() {
 
       <section className="heroContent">
         <p className="eyebrow">WELCOME TO THE VELVET CLUB</p>
-        <h1>More than a server.<br /><em>A place to belong.</em></h1>
+        <h1 className="heroTitle">
+          <span className="heroTitleMain">More than a<br />server.</span>
+          <span className="heroTitleAccent"><em>A place to belong.</em></span>
+        </h1>
         <p className="intro">
           A social & gaming community built around good people, late nights,
           shared interests and a little bit of Velvet magic.

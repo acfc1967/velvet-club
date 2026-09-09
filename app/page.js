@@ -7,6 +7,10 @@ export default function Home() {
           display: block;
         }
 
+        .heroTitleMain {
+          white-space: normal;
+        }
+
         .heroTitleAccent {
           margin-top: .12em;
         }
@@ -69,7 +73,7 @@ export default function Home() {
       <section className="heroContent">
         <p className="eyebrow">WELCOME TO THE VELVET CLUB</p>
         <h1 className="heroTitle">
-          <span className="heroTitleMain">More than a<br />server.</span>
+          <span className="heroTitleMain">More than a&nbsp;server.</span>
           <span className="heroTitleAccent"><em>A place to belong.</em></span>
         </h1>
         <p className="intro">

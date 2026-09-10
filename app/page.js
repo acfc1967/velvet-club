@@ -89,7 +89,7 @@ export default function Home() {
         </p>
         <div className="actions">
           <a className="joinClub" href="https://discord.gg/MwG6r5cNKt" target="_blank" rel="noopener noreferrer">✦ Join The Club ✦</a>
-          <a className="secondary" href="/dashboard">Explore the Club</a>
+          <a className="secondary" href="/api/auth/discord">✧˖°Explore Velvet°˖✧</a>
         </div>
         <div className="signature">Same Souls <span>•</span> Brighter Nights ♡</div>
         <a className="heroScroll" href="#features" aria-label="Explore Velvet"><i />Explore</a>
